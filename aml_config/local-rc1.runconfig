@@ -1,0 +1,75 @@
+{
+    "script": "interfaces/adapters_azure.py",
+    "arguments": [],
+    "framework": "Python",
+    "communicator": "None",
+    "target": "local",
+    "environment": {
+        "name": "AzureML-PyTorch-1.6-CPU",
+        "version": "28",
+        "python": {
+            "interpreterPath": "python",
+            "userManagedDependencies": false,
+            "condaDependencies": {
+                "channels": [
+                    "conda-forge"
+                ],
+                "dependencies": [
+                    "python=3.6.2",
+                    "pip=20.2.4",
+                    {
+                        "pip": [
+                            "azureml-core==1.35.0",
+                            "azureml-defaults==1.35.0",
+                            "azureml-telemetry==1.35.0",
+                            "azureml-train-restclients-hyperdrive==1.35.0",
+                            "azureml-train-core==1.35.0",
+                            "cmake==3.18.2",
+                            "torch==1.6.0",
+                            "torchvision==0.5.0",
+                            "mkl==2018.0.3",
+                            "horovod==0.21.3",
+                            "tensorboard==1.14.0",
+                            "future==0.17.1"
+                        ]
+                    }
+                ],
+                "name": "azureml_123af9b007f4a0e2595e17869787f34e"
+            },
+            "baseCondaEnvironment": null
+        },
+        "environmentVariables": {
+            "EXAMPLE_ENV_VAR": "EXAMPLE_VALUE"
+        },
+        "docker": {
+            "baseImage": "mcr.microsoft.com/azureml/openmpi3.1.2-ubuntu16.04:20210531.v1",
+            "platform": {
+                "os": "Linux",
+                "architecture": "amd64"
+            },
+            "baseDockerfile": null,
+            "baseImageRegistry": {
+                "address": null,
+                "username": null,
+                "password": null
+            },
+            "enabled": false,
+            "arguments": []
+        },
+        "spark": {
+            "repositories": [],
+            "packages": [],
+            "precachePackages": true
+        },
+        "configUri": "/subscriptions/64c7fe17-2a05-4aed-ac0a-b82f18a992da/resourceGroups/WordKnowledge/providers/Microsoft.MachineLearningServices/workspaces/word_sense_induction/environments/AzureML-PyTorch-1.6-CPU/versions/28"
+    },
+    "history": {
+        "outputCollection": true,
+        "directoriesToWatch": [
+            "logs"
+        ]
+    },
+    "docker": {
+        "useDocker": true
+    }
+}
