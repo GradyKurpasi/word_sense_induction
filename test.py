@@ -1,13 +1,11 @@
 from os import name
+
+from interfaces import adapters_azure
+
+import azureml.core
 from azureml.core import compute_target, script_run_config
 from azureml.core import compute
 from azureml.core import conda_dependencies
-from interfaces import adapters_azure
-
-
-
-
-import azureml.core
 from azureml.core import Workspace
 from azureml.core import Experiment
 from azureml.core import Environment
@@ -15,6 +13,9 @@ from azureml.core.compute import ComputeTarget, AmlCompute
 from azureml.core.runconfig import RunConfiguration
 from azureml.core import ScriptRunConfig
 from azureml.core.conda_dependencies import CondaDependencies
+
+
+
 
 
 
@@ -27,9 +28,9 @@ experiment = Experiment(workspace=ws, name=experiment_name)
 
 
 
-comp_target = ComputeTarget(workspace=ws, name='gpu-cluster')
+# comp_target = ComputeTarget(workspace=ws, name='gpu-cluster')
 # compute_target = ComputeTarget(workspace=ws, name='gkurpasi1')
-# compute_target = 'local'
+comp_target = 'local'
 
 
 
