@@ -24,10 +24,14 @@ class AzureMLPlatform(AbstractPlatform):
 
     def __init__(self, experiment_name="", environment_name="", container_files_folder="./container_files"): 
         super().__init__()
-        self.workspace = self.connect_workspace()
-        self.experiment = self.connect_experiment(experiment_name)
-        self.environment = self.connect_environment(environment_name)
+        self.experiment_name = experiment_name
+        self.environment_name = environment_name
         self.container_files_folder = container_files_folder
+        
+    def connect(self):
+        self.workspace = self.connect_workspace()
+        self.experiment = self.connect_experiment(self.experiment_name)
+        self.environment = self.connect_environment(self.environment_name)
         self.test_workspace_connection()
 
 
@@ -54,7 +58,7 @@ class AzureMLPlatform(AbstractPlatform):
             if experiment_name == "" : experiment_name = "Testing"
             return Experiment(workspace=self.workspace, name=experiment_name)
         except Exception as e:
-            err = "AzureMLPlatform connect_experiment(): Error Creating or Connecting to Experiment """ + experiment_name + " "" \n"
+            err = "AzureMLPlatform connect_experiment(): Error Creating or Connecting to Experiment \"" + experiment_name + "\"\n"
             result = err + e
             return result
 
@@ -69,7 +73,7 @@ class AzureMLPlatform(AbstractPlatform):
             if environment_name == "" : environment_name = "test_env"
             return Environment.get(workspace=self.workspace, name="test_env")
         except Exception as e:
-            err = "AzureMLPlatofrm connect_environment: Error Connecting to Environment """ + environment_name + " ""\n"
+            err = "AzureMLPlatofrm connect_environment: Error Connecting to Environment \"" + environment_name + "\"\n"
             result = err + e
             return result 
 
