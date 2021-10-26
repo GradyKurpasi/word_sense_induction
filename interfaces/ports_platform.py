@@ -8,3 +8,9 @@ class AbstractPlatform(abc.ABC):
     @abc.abstractmethod
     def connect(self):
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def display_connection(self):
+        raise NotImplementedError
+
+    
