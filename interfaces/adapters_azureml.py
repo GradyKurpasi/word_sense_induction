@@ -1,3 +1,8 @@
+"""
+AzureML SDK provided by Microsoft Corporation under MIT license
+Copyright (c) Microsoft Corporation. All rights reserved.
+"""
+
 from os import environ
 from interfaces.ports_platform import AbstractPlatform
 import azureml.core
@@ -21,36 +26,39 @@ class AzureMLEnvironmentException(AzureMLException):
 class AzureMLExperimentException(AzureMLException):
     pass
 
-default_experiment = 'Testing'
+default_experiment = 'Testing'  
 default_environment = 'test-env'
-default_comp_target = 'local'
-default_entrypoint = 'train.py'
+default_comp_target = 'local' # 'local' / 'gkurpasi1' (compute instance) / 'cpu-cluster' / 'gpu-cluster'
+default_entrypoint = 'train.py' # entry script to be run in docker container
+default_container_files_folder = './container_files' #location of files to be uploaded to docker container
 
 class AzureMLPlatform(AbstractPlatform):
     """
         (Really) Thin wrapper for connection to AzureML platform
-        encapsulates:
-            connection testing
-            deployment of training scripts
-            deployment models
-        employs docker file/image hosted in Azure Container Registry
         CURRENTLY USES CLI AUTHENTICATION
-        Public
+        encapsulates:
+            connection
+            deployment of training scripts
+            deployment of models
+        employs docker file/image hosted in Azure Container Registry
+                Public
             connect() - from base
             display_connection - from base
             run_training
     """
 
-    def __init__(self, experiment_name=default_experiment, environment_name=default_environment, container_files_folder="./container_files"): 
+    def __init__(self, experiment_name=default_experiment, environment_name=default_environment, container_files_folder=default_container_files_folder): 
         super().__init__()
         self.container_files_folder = container_files_folder
         self.connect(experiment_name, environment_name)
-        
+
+
     def connect(self, experiment_name, environment_name):
         self.workspace = self.__connect_workspace()
         self.experiment = self.__connect_experiment(experiment_name)
         self.environment = self.__connect_environment(environment_name)
         self.display_connection()
+
 
     def __connect_workspace(self):
         """
@@ -99,6 +107,7 @@ class AzureMLPlatform(AbstractPlatform):
             print(result)
             raise AzureMLEnvironmentException
 
+
     def display_connection(self):
         try:
             print ("")
@@ -133,7 +142,6 @@ class AzureMLPlatform(AbstractPlatform):
     def run_training(self, filelist=[], comp_target=default_comp_target, entrypoint=default_entrypoint):
         """
             executes training run
-            values for compute targets are 'local', 'gkurpasi1' (compute instance), 'cpu-cluster', 'gpu-cluster'
         """
 
         self.__copy_container_files(filelist)        

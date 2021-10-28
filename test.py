@@ -1,11 +1,18 @@
 
-# from azureml.core import environment
+from interfaces.adapters_azureml import AzureMLPlatform
 from tests.test_azureml import *
 import requests
 
 
+training_file = 'train.py'
+experiment = 'Transformer-Testing'
+environment = 'word_sense_induction_env'
+compute = 'local'
 
-# response = requests.get("https://babelnet.io/v6/getVersion?key=aa9e9919-5481-483b-8be2-25f6786657b4")
-# print(response.json())
-# test_azureml_connect(test_environment = "word_sense_induction_env")
-test_azureml_run_training(test_environment="word_sense_induction_env")
+
+azml = AzureMLPlatform(experiment_name=experiment, environment_name=environment)
+print("Connected to AzureML")
+azml.run_training(filelist=[training_file],  comp_target=compute, entrypoint=training_file)
+print("AzureML Training Complete")
+
+

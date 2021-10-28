@@ -1,9 +1,14 @@
 """
-Adapters (interfaces) to the Natural Language Toolkit 
-exposes NLTK corpora as AbstractSources
-FUTURE: expose NLTK actions as AbstractNLP
+Natural Language Toolkit code is provided by nltk.org under the Apache 2.0 license
+Copyright (C) 2001-2021 NLTK Project
 
+WordNet code and binaries provided under license by Princeton University
+WordNet 3.0 Copyright 2006 by Princeton University.  All rights reserved.
 WordNet 1.6 Copyright 1997 by Princeton University.  All rights reserved. 
+George A. Miller (1995). WordNet: A Lexical Database for English.
+Communications of the ACM Vol. 38, No. 11: 39-41.
+Christiane Fellbaum (1998, ed.) WordNet: An Electronic Lexical Database. Cambridge, MA: MIT Press.
+Princeton University "About WordNet." WordNet. Princeton University. 2010. 
 
 """
 

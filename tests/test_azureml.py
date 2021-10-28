@@ -27,12 +27,12 @@ def test_azureml_run_training(test_environment=default_test_environment, test_ex
     """
         runs default_training_file in the specified experiment and environment
     """    
-    # create_training_file()
+    create_training_file()
     az_plat = AzureMLPlatform(experiment_name=test_experiment, environment_name=test_environment)
     print("test_azureml_run_training(): Connected")
     az_plat.run_training(filelist=[default_training_file],  comp_target='local', entrypoint=default_training_file)
     print("test_azureml_run_training(): Complete")
-    # remove_training_file()    
+    remove_training_file()    
 
 def create_training_file():
     """"
