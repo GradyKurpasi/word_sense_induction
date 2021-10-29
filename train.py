@@ -1,16 +1,17 @@
-import nltk
-import transformers
 
 
-from transformers import AutoTokenizer, AutoModel
+# from bert_examples import *
 
-tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-model = AutoModel.from_pretrained("bert-base-uncased")
 
-inputs = tokenizer("Hello world!", return_tensors="pt")
-outputs = model(**inputs)
-print(outputs)
+# simple_model()
+
 
 print("DONE")
 
+tup = (1, 2, 3, 4, 5, 6, 67,  's' ,8 , 34)
+print (tup)
+print (len(tup))
 
+
+
+print(tup[-4:])
