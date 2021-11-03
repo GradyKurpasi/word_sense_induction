@@ -76,17 +76,17 @@ def download_nltk_data():
     nltk.download()
 
 
-Semcor  = NLTKSemcorSource()
-Reader = Semcor.read(segment='word') 
-Reader = Semcor.read(segment='chunk') 
-Reader = Semcor.read(segment='sentence') 
-Reader = Semcor.read(segment='chunk_sentence') 
-Reader = Semcor.read(segment='tagged_chunk') 
-Reader = Semcor.read(segment='tagged_sentence') 
+# Semcor  = NLTKSemcorSource()
+# Reader = Semcor.read(segment='word') 
+# Reader = Semcor.read(segment='chunk') 
+# Reader = Semcor.read(segment='sentence') 
+# Reader = Semcor.read(segment='chunk_sentence') 
+# Reader = Semcor.read(segment='tagged_chunk') 
+# Reader = Semcor.read(segment='tagged_sentence') 
 
-print (Reader)
+# print (Reader)
 
 
-import os
+# import os
 
-dir_fd = os.open('somedir', os.O_RDONLY)
+# dir_fd = os.open('somedir', os.O_RDONLY)

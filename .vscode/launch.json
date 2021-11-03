@@ -5,6 +5,12 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "run_local",
+            "type": "python",
+            "request": "launch",
+            "module": "run_local"
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

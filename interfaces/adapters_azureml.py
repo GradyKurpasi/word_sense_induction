@@ -27,10 +27,11 @@ class AzureMLExperimentException(AzureMLException):
     pass
 
 default_experiment = 'Testing'  
-default_environment = 'test-env'
+default_environment = 'word_sense_induction_env'  
 default_comp_target = 'local' # 'local' / 'gkurpasi1' (compute instance) / 'cpu-cluster' / 'gpu-cluster'
 default_entrypoint = 'train.py' # entry script to be run in docker container
 default_container_files_folder = './container_files' #location of files to be uploaded to docker container
+# default_config_folder = '../.azureml'
 
 class AzureMLPlatform(AbstractPlatform):
     """
@@ -46,6 +47,7 @@ class AzureMLPlatform(AbstractPlatform):
             display_connection - from base
             run_training
     """
+
 
     def __init__(self, experiment_name=default_experiment, environment_name=default_environment, container_files_folder=default_container_files_folder): 
         super().__init__()
@@ -162,6 +164,7 @@ class AzureMLPlatform(AbstractPlatform):
         print ("Container Files Location: " + self.container_files_folder)
         print ("Files " + str(filelist))
         run = self.experiment.submit(config=script_run_config)
+
 
 
 

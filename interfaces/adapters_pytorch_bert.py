@@ -1,11 +1,20 @@
 """
 Pytorch Transformers code provided by Hugging Face under Apache 2.0 license
 Copyright 2018- The Hugging Face team. All rights reserved.
+Growing Neural Gas code adapted from Adrien Guille under MIT license
+Copyright (c) 2016 Adrien Guille
 """
 import torch
 from torch import Tensor
+from torch.utils.tensorboard import SummaryWriter
 from transformers import AutoTokenizer, AutoModel, pipeline, BertTokenizer, BertModel, BertForNextSentencePrediction, BertConfig
-from transformers.utils.dummy_pt_objects import LayoutLMPreTrainedModel
+# from transformers.utils.dummy_pt_objects import LayoutLMPreTrainedModel
+
+
+
+
+
+
 
 
 def print_inputs(input_text, inputs):
@@ -134,6 +143,12 @@ def print_outputs(outputs):
     concat_last4_layers = concat_last4_hidden_layers(outputs['hidden_states'], tgt_word, tgt_batch)
 
 
+def export_embeddings_to_tensorboard(embeddings):
+    writer = SummaryWriter()
+    writer.add_embedding(embeddings)
+    writer.close()
+
+
 def example_simple_model():
     # MODEL
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
@@ -252,13 +267,41 @@ def example_next_sentence_prediction():
 
 
 
+def example_gng():
+    from gng import GrowingNeuralGas
 
+    
+    # MODEL
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+    model = BertModel.from_pretrained("bert-base-uncased")
 
+    #INPUT
+    input_text = ['Hello There!', 'Goodbye for now.']
+
+    # TOKENIZER
+    inputs = tokenizer(input_text, padding=True, truncation=True, return_tensors='pt')    # returns: {'input_ids' : [tensor], 'token_type_ids' : [tensor], 'attention_mask' : [tensor]}
+    print_inputs(input_text, inputs)
+
+    # MODEL OUTPUTS
+    # outputs = model(**input)
+    outputs = model(**inputs, output_hidden_states=True)
+    # print_outputs(outputs)
+
+    data = outputs['last_hidden_state'].view(-1, 768)
+    print(data.shape)
+
+    gng = GrowingNeuralGas(data)
+    gng.fit_network(e_b=0.1, e_n=0.006, a_max=10, l=200, a=0.5, d=0.995, passes=8, plot_evolution=True)
+    print('Found %d clusters.' % gng.number_of_clusters())
+    # gng.plot_clusters(gng.cluster_data())
+    nodes = gng.get_nodes()
+    node_ten = torch.Tensor(nodes)
+    export_embeddings_to_tensorboard(nodes)
 
 
 # simple_model()
 # example_simple_model_multiple_inputs()
-
-example_multiple_paired_inputs()
+example_gng()
+# example_multiple_paired_inputs()
 
 
