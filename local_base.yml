@@ -28,14 +28,13 @@ dependencies:
     - azureml-telemetry==1.35.0
     - azure-cosmos==4.2.0
     - gremlinpython==3.5.1
-    - tensorboard==2.4.0
-    - tensorflow-gpu==2.4.1
     - onnxruntime-gpu>=1.7,<1.8
     - future==0.17.1
     - torch-tb-profiler==0.2.1
     - nltk
     - transformers==4.12.2
     - networkx==2.6.3
+    
 
 
 
