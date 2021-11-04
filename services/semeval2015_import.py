@@ -26,23 +26,43 @@ def open_semeval2015_keys(filename=KEY_FILE):
 
 #############################################
 # Gremlin GraphDB Handlers
+# 
+# all writes use synchronous submits and blocking
 
 def write_source(client, source_id, source_type, source_year, source_desc):
+    """ Synchronously writes source vertex to graph"""
     query = "g.addV('source').property('id', '{}').property('type', '{}').property('year', '{}').property('description', '{}').property('pk', '/pk')".format(
         source_id, source_type, source_year, source_desc)
-    callback = client.submitAsync(query)
-    if callback.result() is None:
+    result_set = client.submit(query)   # blocks until request written to server
+    results = result_set.all().result() # blocks until results returned from server
+    assert result_set.done.done()
+    if result_set is None:
         raise Exception("CosmosDB Error: {}".format(query))
+    return results
+
+def write_lemma(client, lemma):
+    """ Synchronously writes lemma vertex to graph """
+    query = "g.addV('lemma').property('id', '{}').property('pk', '/pk')".format(lemma)
+    result_set = client.submit(query)   # blocks until request written to server
+    results = result_set.all().result() # blocks until results returned from server
+    assert result_set.done.done()
+    if result_set is None:
+        raise Exception("CosmosDB Error: {}".format(query))
+    return results
 
 
-def write_lemma(client, lemma, token, address, pos, source_id):
-    query = ["g.addV('lemma').property('id', '{}').property('pk', '/pk')".format(lemma), 
-            "g.V().hasLabel('lemma').has('id', '{}').addE('occursIn').property('id', '{}').property('token', '{}').property('pos', '{}').to(g.V().hasLabel('source').has('id', '{}'))".format(
-                lemma, address, token, pos, source_id)]
-    for string in query:
-        callback = client.submitAsync(string)
-        if callback.result() is None:
-            raise Exception("CosmosDB Error: {}".format(query))
+def write_occurence(client, lemma, token, address, pos, source_id):
+    """ Synchronously writes occursIn edge from lemma to source """
+    query = "g.V().hasLabel('lemma').has('id', '{}').addE('occursIn').property('id', '{}').property('token', '{}').property('pos', '{}').to(g.V().hasLabel('source').has('id', '{}'))".format(
+                lemma, address, token, pos, source_id)
+    result_set = client.submit(query)   # blocks until request written to server
+    results = result_set.all().result() # blocks until results returned from server
+    assert result_set.done.done()
+    if result_set is None:
+        raise Exception("CosmosDB Error: {}".format(query))
+    return results
+
+
 
 
 def __delete_entire_graph_database(client):
@@ -61,6 +81,7 @@ def import_semeval2015_lemma():
     word_count = 0
     lemma_count = 0
     lemma_set = set(())
+    missing_edge_set = set(())
     try:
         __delete_entire_graph_database(dbclient)
         root = semeval_data.getroot()
@@ -76,14 +97,21 @@ def import_semeval2015_lemma():
                 print(sentence.attrib['id'])
                 for word in sentence:
                     word_count += 1
-                    token = word.text
+                    token = word.text.replace("'", "[UTF-8 39 decimal]").replace("?", "[UTF-8 63 decimal]")   # escapes single quote and questionmark
                     if 'lemma' in word.attrib.keys():
-                        lemma = word.attrib['lemma']
-                        lemma_set.add(lemma)
+                        lemma = word.attrib['lemma'].replace("?", "[UTF-8 63 decimal]")
                         lemma_count += 1
                         address = word.attrib['id']
                         pos = word.attrib['pos']
-                        write_lemma(dbclient, lemma, token, address, pos, source_id)
+                        if lemma not in lemma_set:
+                            write_lemma(dbclient, lemma)
+                            lemma_set.add(lemma)
+                        write_occurence(dbclient, lemma, token, address, pos, source_id)
+                        result_set = dbclient.submit('g.E().count()')
+                        edges = result_set.all().result()[0] #blocking call
+                        if edges != lemma_count:
+                            print('Missing Edge: {}'.format(address))
+                            missing_edge_set.add(address)
         dbclient.close()
         print("Word Count: {}".format(word_count))
         print("Lemma Count: {}".format(lemma_count))
@@ -93,17 +121,22 @@ def import_semeval2015_lemma():
     except Exception as e:
         raise Exception(e)    
     finally:
+        print(lemma, word_count, address)
         dbclient.close()
+
         print("Database closed")
 
 
 
 def import_semeval2015_keys():
     multi_word = 0
+    multi_words = []
     key_reader = open_semeval2015_keys()
     print(key_reader)
     for line in key_reader:
-        if line[0] != line[1]: multi_word += 1
+        if line[0] != line[1]: 
+            multi_word += 1
+            multi_words.append([line[0], line[1]])
         print(line[0])
         print(line[1])
         print(line[2])
@@ -113,3 +146,8 @@ def import_semeval2015_keys():
             
     print("Lines: {}".format(key_reader.line_num))
     print("Multi Word: {}".format(multi_word))
+    print(multi_words)
+
+
+
+    # g.V().outE().has('id', containing('d001.s001'))
