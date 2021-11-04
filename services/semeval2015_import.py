@@ -126,28 +126,87 @@ def import_semeval2015_lemma():
 
         print("Database closed")
 
+def parse_key_address(address):
+    doc = int(address[1:4])
+    sent = int(address[6:9])
+    tok = int(address[11:])
+    return doc, sent, tok
+
+
+def format_address(doc, sent, tok):
+    return "d" + str(doc).rjust(3,'0') + ".s" + str(sent).rjust(3,'0') + ".t" + str(tok).rjust(3,'0')
+
+
+def edge_exists(client, address):
+    query = "g.E().has('id', '{}').property('checked', 'true').count()".format(address)
+    result_set = client.submit(query)
+    edges = result_set.all().result()[0] #blocking call
+    if edges == 1:
+        return True
+    else:
+        return False
+
 
 
 def import_semeval2015_keys():
     multi_word = 0
     multi_words = []
+    missing_edge = 0
+    missing_edges = []
+    edges_checked = 0
     key_reader = open_semeval2015_keys()
-    print(key_reader)
-    for line in key_reader:
-        if line[0] != line[1]: 
-            multi_word += 1
-            multi_words.append([line[0], line[1]])
-        print(line[0])
-        print(line[1])
-        print(line[2])
-        print(len(line))
-        for i in range(3, len(line)):
-            print(line[i])
+    dbclient = connect_cosmosdb_client()
+    try:
+        for line in key_reader:
+            start_address = line[0]
+            end_address = line[1]
+            start_doc, start_sent, start_tok = parse_key_address(start_address)
+            end_doc, end_sent, end_tok = parse_key_address(end_address)
+            if start_tok == end_tok: 
+                end_tok += 1
+            else:
+                multi_word += 1
+                multi_words.append([start_address, end_address])
+            for tok in range(start_tok, end_tok):
+                edges_checked += 1
+                address = format_address(start_doc, start_sent, tok)
+                if not edge_exists(dbclient, address): 
+                    missing_edge += 1
+                    missing_edges.append(address)
+
+            print("Line: {}".format(key_reader.line_num))
+        # if line[0] != line[1]: 
+        #     multi_word += 1
+        #     multi_words.append([line[0], line[1]])
+        #     print(parse_key_address(line[0]))
+        #     print(parse_key_address(line[1]))
+        #     print("\n")
+
+
+
+        # print(line[0])
+        # print(line[1])
+        # print(line[2])
+        # print(len(line))
+        # for i in range(3, len(line)):
+        #     print(line[i])
             
-    print("Lines: {}".format(key_reader.line_num))
-    print("Multi Word: {}".format(multi_word))
-    print(multi_words)
+        print("Lines: {}".format(key_reader.line_num))
+        print("Multi Word: {}".format(multi_word))
+        # print(multi_words)
+
+    except Exception as e:
+        raise Exception(e)    
+    finally:
+        print("Current Address: {}".format(start_address))
+        print("Edges Checked: {}".format(edges_checked))
+        print("Missing Edges: {}".format(missing_edge))
+        print(missing_edges)
+        dbclient.close()
+        print("Database closed")
+
 
 
 
     # g.V().outE().has('id', containing('d001.s001'))
+    # g.E().hasNot('checked')
