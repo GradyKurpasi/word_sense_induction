@@ -3,6 +3,7 @@ from interfaces.adapter_cosmosdb import *
 from domain.word_knowledge import LemmaDict
 import xml.etree.ElementTree as ET
 import csv
+import json
 
 DATA_FILE = "./SemEval-2015/data/semeval-2015-task-13-en.xml"
 KEY_FILE = "./SemEval-2015/keys/gold_keys/EN/semeval-2015-task-13-en.key"
@@ -204,9 +205,10 @@ def import_semeval2015_keys():
     missing_edges = []
     edges_checked = 0
     sense_set = set(())
+    lemma_sense_set = set(())
     key_reader = open_semeval2015_keys()
     dbclient = connect_cosmosdb_client()
-    cleanup_key_import(dbclient)
+    # cleanup_key_import(dbclient)
     try:
         for line in key_reader:
             start_address = line[0]
@@ -221,9 +223,10 @@ def import_semeval2015_keys():
                 id = line[i].split(":", 1)[1]
                 sense_insert_string += ".property(list, '{}', '{}')".format(source, id)
             # write sense
-            sense_set.add(sense_id)
             if sense_id not in sense_set:
                 write_sense(dbclient, sense_insert_string)
+            sense_set.add(sense_id)
+
             # debug code, check for multi-word lemma
             if start_tok == end_tok: 
                 end_tok += 1
@@ -237,11 +240,12 @@ def import_semeval2015_keys():
                 edges = update_edge(dbclient, address, sense_id) 
                 for edge in edges:
                     lemma = edge['outV']
-                    # create lemma-> sense edges and edge-> lemma sense
-                    write_lemma_sense_edge(dbclient, lemma, sense_id)
-                    # create sense-> lemma edges
-                    write_sense_lemma_edge(dbclient, sense_id, lemma)
-
+                    if (lemma, sense_id) not in lemma_sense_set:
+                        # create lemma-> sense edges and edge-> lemma sense
+                        write_lemma_sense_edge(dbclient, lemma, sense_id)
+                        # create sense-> lemma edges
+                        write_sense_lemma_edge(dbclient, sense_id, lemma)
+                        lemma_sense_set.add((lemma, sense_id))
 
             print("Line: {}".format(key_reader.line_num))
 
@@ -272,3 +276,283 @@ def import_semeval2015_keys():
 
     # g.V().outE().has('id', containing('d001.s001'))
     # g.E().hasNot('checked')
+
+def find_edge(client, address):
+    query = "g.E().has('id', '{}')".format(address)
+    result_set = client.submit(query)
+    edges = result_set.all().result() #blocking call
+    return edges
+    
+
+
+class PadList(list):
+    def ljust(self, n, fillvalue=''):
+        return self + [fillvalue] * (n - len(self))
+
+    def rjust(self, n, fillvalue=''):
+        return [fillvalue] * (n-len(self)) + self
+
+
+
+def preprocess_semeval2015_documents():
+    """
+        reads semeval2015 text from XML tree reader
+        creates 3 representations of words
+        list of words in document order
+        list of sentences (list of words)
+        map of lemma to occurrence addresses
+    """
+    semeval_data = open_semeval2015_data()
+    token_count = 0         # count of all tokens in all documents
+    lemma_count = 0         # count of all lemma in all documents
+    lemma_set = set(())     # all lemma in all documents
+    lemma_map = {}          # occurrences of lemma in all documents
+    docs = []
+    dbclient = connect_cosmosdb_client()
+    no_sense = set(())
+
+    for document in semeval_data.getroot():
+        doc_token_count = 0         # of tokens in doc
+        # doc_lemma_count = 0
+        # doc_lemma_set = set(())
+        sent_count = 0              # of sentences in doc
+        tokenlist = []              # list of tokens in doc (essentially recreation of text)
+        source_id = "semeval2015-" + document.attrib['id']
+        print(document.attrib['id'])
+        doc = []
+        if document.attrib['id'] == 'd003': # document3 starts at sentence 2, no sentence 1
+            doc.append("")                 # add a blank sentence
+        for sentence in document:       
+            print(sentence.attrib['id'])
+            sent = []
+            sent_count += 1
+            for word in sentence:
+                # update counts
+                token_count += 1
+                doc_token_count += 1
+                # format token
+                token = word.text.replace("'", "[UTF-8 39 decimal]").replace("?", "[UTF-8 63 decimal]")   # escapes single quote and questionmark
+                # add token to lists
+                sent.append(token)
+                tokenlist.append(token)
+                # if token is a lemma - update lemma stats and lists
+                if 'lemma' in word.attrib.keys():
+                    lemma = word.attrib['lemma'].replace("?", "[UTF-8 63 decimal]")
+                    address = word.attrib['id']
+                    print(lemma)
+
+                    # get existing edges to find sense key (disambiguation answer)
+                    edge = find_edge(dbclient, ADDR_PREFIX + address)
+                    assert len(edge) == 1
+                    # not all lemma had sense keys in answer set if no sense key exists, skip lemma altogether
+                    if 'sense' not in edge[0]['properties'].keys():
+                        no_sense.add(lemma)
+                        print("Missing Sense {}".format(lemma))
+                        continue
+                    # if lemma in ('be', 'epar', 'unresectable', 'have', 'own', 'qualify', 'recommended', 'receive', 'b12', 'anti-emetic', 'characteristics', 'do', 'work', 'such as', 'comparator'):
+                    #     continue
+                    lemma_count += 1
+
+                    # find occursIn edge to get sense_id solution                    
+                    sense = edge[0]['properties']['sense']
+
+                    # record lemma
+                    if lemma not in lemma_set:
+                        lemma_map[lemma] = {address : sense}
+                    else:
+                        lemma_map[lemma][address] = sense
+                    lemma_set.add(lemma)
+            doc.append(sent)
+        docs.append(doc)
+    
+    dbclient.close()
+    print("DONE W PRE-PROCESSING")
+    print("No Sense: ", no_sense)
+
+    print("Writing document to json")
+    # save document data to json
+    with open('semeval2015-docs.json', 'w') as f:
+        json.dump(docs, f, indent = 2)
+ 
+    # save lemma data to json
+    # set objects are not json serializable
+    print("writing lemma set")
+    with open("lemma_set.json", "w") as f:
+        json.dump(list(lemma_set), f, indent=2)
+
+    # save lemma map to json
+    # set objects are not json serializable
+    print("writing lemma map")
+    lemma_map_json = {}
+    for key, val in lemma_map.items():
+        lemma_map_json[key] = list(val.items())
+    with open("lemma_map.json", "w") as f:
+        json.dump(lemma_map_json, f, indent=2)
+    print("Total Words: {}".format(token_count))    
+
+
+
+
+
+
+
+def create_left_aligned_sentences():
+    """
+        create 1 left aligned sentence for every sense coded lemma (not all lemma have sense mappings)
+    """
+    # Load Lemma Map
+    # Lemma Map
+    #      lemma : [
+    #               [address, sense]
+    #               [address, sense]
+    #               [address, sense] 
+    #               ]
+    #      lemma : [
+    #               [address, sense]
+    #               ]
+    # etc.
+    print("Loading Lemma Data")
+    with open('lemma_map.json', ) as f:
+        lemma_map = json.load(f)
+    with open ('semeval2015-docs',) as f:
+        docs = json.load(f)    
+    print("Creating Left Aligned sentences")
+    max_len = 0
+    sent_out = []
+    for lemma, occurence_list in lemma_map.items():
+        for occurrence in occurence_list:
+            address = occurrence[0]
+            sense = occurrence[1]
+            docid, sentid, tokid = parse_key_address(address)
+            sent = docs[docid-1][sentid-1]
+            sent_out.append([lemma,  sense, str(tokid), sent])
+
+    print("Save JSON")
+    with open("sent_left.json", "w") as f:
+        json.dump(sent_out, f, indent=2)
+
+
+
+
+
+
+
+
+
+
+def create_centered_sentences():
+    """
+        create 1 centered sentence for every sense coded lemma (not all lemma have sense mappings)
+    """
+    print("Loading Lemma Data")
+    with open('lemma_map.json', ) as f:
+        lemma_map = json.load(f)
+    with open ('semeval2015-docs',) as f:
+        docs = json.load(f)  
+    print("Creating centered sentences")
+    max_len = 0
+    sent_out = PadList()
+    context_center = 100
+    for lemma, occurence_list in lemma_map.items():
+        for occurrence in occurence_list:
+            address = occurrence[0]
+            sense = occurrence[1]
+            docid, sentid, tokid = parse_key_address(address)
+            sent = docs[docid-1][sentid-1]
+            sent_left = PadList(sent[:tokid-1])
+            sent_right = PadList(sent[tokid:])
+            sent = sent_left.rjust(context_center, '') + [lemma] + sent_right.ljust(context_center, '')
+            assert len(sent) == (2 * context_center) + 1
+            assert sent[context_center] == lemma
+            sent_out.append([lemma,  sense, str(context_center), sent])
+
+    print("Save JSON")
+    with open("sent_center.json", "w") as f:
+        json.dump(sent_out, f, indent=2)
+
+
+
+
+def create_centered_contexts():
+    """
+        create 1 centered context for every sense coded lemma (not all lemma have sense mappings)
+        appends surrounding sentences on right and left then trims to context_width
+    """
+    print("Loading Lemma Data")
+    with open('lemma_map.json', ) as f:
+        lemma_map = json.load(f)
+    with open ('semeval2015-docs',) as f:
+        docs = json.load(f)  
+    print("Creating centered sentences")
+    max_len = 0
+    sent_out = PadList()
+    context_width = 100
+    for lemma, occurence_list in lemma_map.items():
+        for occurrence in occurence_list:
+            address = occurrence[0]
+            sense = occurrence[1]
+            docid, sentid, tokid = parse_key_address(address)
+            sent = docs[docid-1][sentid-1]
+            sent_left = PadList(sent[:tokid-1])
+            sent_right = PadList(sent[tokid:])
+
+            for i in range(1, 10):  #expand context left and right of current sentence
+                try:
+                    sent_left = docs[docid-1][sentid-1-i] + [" "] + sent_left
+                    sent_right = sent_right + [" "] + docs[docid-1][sentid-1+i]
+                except:
+                    pass
+            if len(sent_left) < context_width: 
+                sent_left = PadList(sent_left).rjust(context_width, '') 
+            if len(sent_right) < context_width: 
+                sent_right = PadList(sent_right).ljust(context_width, '')
+
+            sent = sent_left[-context_width:] + [lemma] + sent_right[:context_width]
+            assert len(sent) == (2 * context_width) + 1
+            assert sent[context_width] == lemma
+            sent_out.append([lemma,  sense, str(context_width), sent])
+
+    print("Save JSON")
+    with open("context_center.json", "w") as f:
+        json.dump(sent_out, f, indent=2)
+
+
+    # PART Iv
+    # create centered contexts
+    # print("Creating centered contexts")
+    # context_size = 100
+    # sent_out = PadList()
+    # lenlem = len(lemma_set)
+    # lem = 0
+    # for lemma in lemma_set:
+    #     lem += 1
+    #     print("Lemma: {} of {}".format(lem, lenlem))
+    #     for lemma, address_list in lemma_map.items():
+    #         for address in address_list:
+    #             docid, sentid, tokid = parse_key_address(address)
+    #             sent = docs[docid-1][sentid-1]
+    #             sent_left = PadList(sent[:tokid-1])
+    #             sent_right = PadList(sent[tokid:])
+    #             for i in range(1, 10):  #expand context left and right of current sentence
+    #                 try:
+    #                     sent_left = docs[docid-1][sentid-1-i] + [" "] + sent_left
+    #                     sent_right = sent_right + [" "] + docs[docid-1][sentid-1+i]
+    #                 except:
+    #                     pass
+    #             if len(sent_left) < context_size: 
+    #                 sent_left = PadList(sent_left).rjust(context_size, '') 
+    #             if len(sent_right) < context_size: 
+    #                 sent_right = PadList(sent_right).ljust(context_size, '')
+
+
+
+
+    #             sent = sent_left[-context_size:] + [lemma] + sent_right[:context_size]
+    #             assert len(sent) == (2 * context_size) + 1
+    #             assert sent[context_size] == lemma
+    #             sent_out.append(sent)
+    # # lemma_map_json = dict(zip(lemma_map.keys(), list(lemma_map.values())))
+    # with open("context_center.json", "w") as f:
+    #     json.dump(sent_out, f, indent=2)
+    # print("DONE")
+
