@@ -4,6 +4,9 @@ Copyright (c) Microsoft Corporation. All rights reserved.
 """
 
 from os import environ
+
+from numpy.lib.utils import source
+import container_files
 from interfaces.ports_platform import AbstractPlatform
 import azureml.core
 from azureml.core import compute_target, script_run_config
@@ -30,7 +33,7 @@ default_experiment = 'Testing'
 default_environment = 'word_sense_induction_env'  
 default_comp_target = 'local' # 'local' / 'gkurpasi1' (compute instance) / 'cpu-cluster' / 'gpu-cluster'
 default_entrypoint = 'train.py' # entry script to be run in docker container
-default_container_files_folder = './container_files' #location of files to be uploaded to docker container
+default_container_files_folder = '.' #location of files to be uploaded to docker container
 # default_config_folder = '../.azureml'
 
 class AzureMLPlatform(AbstractPlatform):
@@ -130,6 +133,7 @@ class AzureMLPlatform(AbstractPlatform):
 
     def __copy_container_files(self, filelist):
         """
+            DEPRECATED
             copies files in filelist to container_files_folder
             in preparation for a container run
         """
@@ -141,12 +145,10 @@ class AzureMLPlatform(AbstractPlatform):
             shutil.copy(file, self.container_files_folder)
         
 
-    def run_training(self, filelist=[], comp_target=default_comp_target, entrypoint=default_entrypoint):
+    def run_training(self, comp_target=default_comp_target, entrypoint=default_entrypoint):
         """
             executes training run
         """
-
-        self.__copy_container_files(filelist)        
 
         run_config = RunConfiguration(framework='python')
         run_config.target = comp_target
@@ -162,7 +164,7 @@ class AzureMLPlatform(AbstractPlatform):
         print ("Compute Target: " + comp_target)
         print ("Entry Point: " + entrypoint)
         print ("Container Files Location: " + self.container_files_folder)
-        print ("Files " + str(filelist))
+        # print ("Files " + str(filelist))
         run = self.experiment.submit(config=script_run_config)
 
 

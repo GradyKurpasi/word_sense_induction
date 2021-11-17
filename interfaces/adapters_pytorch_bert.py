@@ -144,6 +144,8 @@ def print_outputs(outputs):
 
 
 def export_embeddings_to_tensorboard(embeddings):
+    # tensorboard --logdir=runs
+    #  http://localhost:6006
     writer = SummaryWriter()
     writer.add_embedding(embeddings)
     writer.close()
@@ -268,7 +270,7 @@ def example_next_sentence_prediction():
 
 
 def example_gng():
-    from gng import GrowingNeuralGas
+    from domain.gng import GrowingNeuralGas
 
     
     # MODEL
@@ -287,6 +289,12 @@ def example_gng():
     outputs = model(**inputs, output_hidden_states=True)
     # print_outputs(outputs)
 
+
+    #DEBUG
+    tgt_batch = 0
+    tgt_word = 1
+    sum_last4_layers = sum_last4_hidden_layers(outputs['hidden_states'], tgt_word, tgt_batch)
+
     data = outputs['last_hidden_state'].view(-1, 768)
     print(data.shape)
 
@@ -301,7 +309,7 @@ def example_gng():
 
 # simple_model()
 # example_simple_model_multiple_inputs()
-example_gng()
+# example_gng()
 # example_multiple_paired_inputs()
 
 

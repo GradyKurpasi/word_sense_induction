@@ -75,7 +75,8 @@ class GrowingNeuralGas:
         sequence = 0
         for p in range(passes):
             print('   Pass #%d' % (p + 1))
-            np.random.shuffle(self.data)
+            with torch.no_grad():
+                np.random.shuffle(self.data)
             steps = 0
             for observation in self.data:
                 # 2. find the nearest unit s_1 and the second nearest unit s_2
